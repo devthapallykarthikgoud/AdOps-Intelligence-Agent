@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import os
 
 from app.ingest import (
     load_campaign_data,
@@ -17,8 +18,11 @@ from app.agent import run_pipeline
 # ─────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="AdOps AI Agent",
+
+    page_title="AdOps Intelligence Agent",
+
     page_icon="📊",
+
     layout="wide"
 )
 
@@ -30,17 +34,23 @@ st.set_page_config(
 st.title("📊 AdOps Intelligence Agent")
 
 st.markdown("""
-AI-powered campaign monitoring system using:
 
-- LangGraph
-- RAG (FAISS)
-- Groq Llama 3.1
-- KPI Analysis
+AI-powered AdOps monitoring and optimization platform.
+
+### Features
+- KPI anomaly detection
+- LangGraph AI workflow
+- RAG-based optimization retrieval
+- Groq LLM explanations
+- AI-generated recommendations
+- Exportable reports
+- Critical campaign monitoring
+
 """)
 
 
 # ─────────────────────────────────────────────
-# LOAD FAISS KNOWLEDGE BASE
+# LOAD VECTOR DATABASE
 # ─────────────────────────────────────────────
 
 @st.cache_resource
@@ -59,7 +69,9 @@ faiss_index = load_faiss()
 # ─────────────────────────────────────────────
 
 uploaded_file = st.file_uploader(
-    "Upload Campaign CSV",
+
+    "📁 Upload Campaign CSV",
+
     type=["csv"]
 )
 
@@ -75,14 +87,17 @@ if uploaded_file:
         uploaded_file
     )
 
-    st.subheader("📁 Campaign Data")
+    # Display uploaded data
+    st.subheader("📄 Uploaded Campaign Data")
 
     st.dataframe(
+
         df,
+
         use_container_width=True
     )
 
-    # Run Button
+    # Run AI analysis
     if st.button("🚀 Run AI Analysis"):
 
         results = []
@@ -94,16 +109,16 @@ if uploaded_file:
         total = len(df)
 
         # ─────────────────────────
-        # PROCESS CAMPAIGNS
+        # PROCESS EACH CAMPAIGN
         # ─────────────────────────
 
         for idx, row in df.iterrows():
 
             status_text.text(
-                f"Processing {row['campaign_name']}..."
+                f"Analyzing {row['campaign_name']}..."
             )
 
-            # Create Campaign object
+            # Create campaign object
             campaign = Campaign(
 
                 campaign_id=row["campaign_id"],
@@ -123,9 +138,11 @@ if uploaded_file:
                 cpm=row["cpm"]
             )
 
-            # Run AI pipeline
+            # Run LangGraph pipeline
             analysis = run_pipeline(
+
                 campaign,
+
                 faiss_index
             )
 
@@ -138,14 +155,14 @@ if uploaded_file:
             progress_bar.progress(progress)
 
         status_text.success(
-            "✅ Analysis completed successfully!"
+            "✅ AI Analysis Completed!"
         )
 
         # ─────────────────────────
         # SUMMARY METRICS
         # ─────────────────────────
 
-        st.subheader("📈 Analysis Summary")
+        st.subheader("📊 Portfolio Summary")
 
         critical_count = len([
             r for r in results
@@ -162,7 +179,7 @@ if uploaded_file:
             if str(r.severity) == "Severity.MEDIUM"
         ])
 
-        ok_count = len([
+        healthy_count = len([
             r for r in results
             if str(r.severity) == "Severity.OK"
         ])
@@ -170,42 +187,52 @@ if uploaded_file:
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
+
             st.metric(
                 "🚨 Critical",
                 critical_count
             )
 
         with col2:
+
             st.metric(
                 "⚠ High",
                 high_count
             )
 
         with col3:
+
             st.metric(
                 "🟡 Medium",
                 medium_count
             )
 
         with col4:
+
             st.metric(
                 "✅ Healthy",
-                ok_count
+                healthy_count
             )
 
         # ─────────────────────────
-        # CAMPAIGN RESULTS
+        # CAMPAIGN ANALYSIS
         # ─────────────────────────
 
-        st.subheader("🧠 Campaign Analysis")
+        st.subheader("🧠 Campaign Intelligence")
 
         for result in results:
 
+            severity_text = str(
+                result.severity
+            ).split(".")[-1]
+
             with st.expander(
-                f"{result.campaign_name} — {result.severity}"
+                f"{result.campaign_name} — {severity_text}"
             ):
 
                 # KPIs
+                st.markdown("### 📈 KPI Metrics")
+
                 st.write(
                     f"CTR: {result.ctr:.2f}%"
                 )
@@ -218,24 +245,37 @@ if uploaded_file:
                     f"Fill Rate: {result.fill_rate:.2f}%"
                 )
 
+                # Confidence Score
+                if hasattr(
+                    result,
+                    "confidence_score"
+                ):
+
+                    st.write(
+                        f"AI Confidence Score: "
+                        f"{result.confidence_score}%"
+                    )
+
                 # ─────────────────────
                 # ISSUES
                 # ─────────────────────
 
-                st.markdown("### 🚨 Issues")
+                st.markdown(
+                    "### 🚨 Detected Issues"
+                )
 
                 if result.issues:
 
                     for issue in result.issues:
 
-                        st.write(
-                            f"- {issue.issue_type}"
+                        st.warning(
+                            f"{issue.issue_type}"
                         )
 
                 else:
 
                     st.success(
-                        "No issues detected"
+                        "No issues detected."
                     )
 
                 # ─────────────────────
@@ -269,8 +309,9 @@ if uploaded_file:
                     st.write(
                         "No recommendations needed."
                     )
+
         # ─────────────────────────
-        # EXPORT REPORTS
+        # EXPORT DATA
         # ─────────────────────────
 
         st.subheader("📥 Export Reports")
@@ -292,7 +333,9 @@ if uploaded_file:
                 "fill_rate": result.fill_rate,
 
                 "issues": ", ".join([
+
                     issue.issue_type
+
                     for issue in result.issues
                 ]),
 
@@ -308,6 +351,56 @@ if uploaded_file:
         )
 
         # ─────────────────────────
+        # SAVE REPORT FILES
+        # ─────────────────────────
+
+        os.makedirs(
+            "reports",
+            exist_ok=True
+        )
+
+        # Save full analysis report
+        with open(
+
+            "reports/latest_analysis.json",
+
+            "w"
+        ) as f:
+
+            json.dump(
+
+                export_data,
+
+                f,
+
+                indent=2
+            )
+
+        # Save only critical campaigns
+        critical_campaigns = [
+
+            item for item in export_data
+
+            if "CRITICAL" in item["severity"]
+        ]
+
+        with open(
+
+            "reports/critical_campaigns.json",
+
+            "w"
+        ) as f:
+
+            json.dump(
+
+                critical_campaigns,
+
+                f,
+
+                indent=2
+            )
+
+        # ─────────────────────────
         # DOWNLOAD BUTTONS
         # ─────────────────────────
 
@@ -317,7 +410,9 @@ if uploaded_file:
         with col1:
 
             csv = export_df.to_csv(
+
                 index=False
+
             ).encode("utf-8")
 
             st.download_button(
@@ -330,14 +425,16 @@ if uploaded_file:
 
                 mime="text/csv",
 
-                key="csv_report_button"
+                key="csv_download_button"
             )
 
         # JSON DOWNLOAD
         with col2:
 
             json_data = json.dumps(
+
                 export_data,
+
                 indent=2
             )
 
@@ -351,5 +448,17 @@ if uploaded_file:
 
                 mime="application/json",
 
-                key="json_report_button"
+                key="json_download_button"
             )
+
+        # ─────────────────────────
+        # SUCCESS MESSAGE
+        # ─────────────────────────
+
+        st.success(
+            "✅ Reports generated successfully!"
+        )
+
+        st.info(
+            "Critical campaign reports saved in reports/ folder for n8n automation."
+        )
