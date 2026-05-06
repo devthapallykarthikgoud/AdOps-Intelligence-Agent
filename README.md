@@ -2,6 +2,8 @@
 
 AI-powered campaign monitoring and optimization platform built using LangGraph, RAG (Retrieval-Augmented Generation), FAISS vector search, Groq LLMs, and Streamlit.
 
+This system analyzes advertising campaign performance data, detects KPI anomalies, retrieves optimization strategies using semantic search, generates AI-driven business explanations, and provides actionable recommendations for AdOps teams.
+
 ## Features
 
 - AI Campaign Analysis
@@ -16,14 +18,18 @@ AI-powered campaign monitoring and optimization platform built using LangGraph, 
 
 ## Tech Stack
 
-- Python
-- Streamlit
-- LangGraph
-- FAISS
-- Sentence Transformers
-- Groq API
-- Pandas
-- Matplotlib
+| Technology            | Purpose                   |
+| --------------------- | ------------------------- |
+| Python                | Core programming language |
+| Streamlit             | Frontend dashboard        |
+| LangGraph             | AI workflow orchestration |
+| FAISS                 | Vector similarity search  |
+| Sentence Transformers | Embeddings                |
+| Groq API              | LLM inference             |
+| Llama 3.1             | AI reasoning model        |
+| Pandas                | Data processing           |
+| Matplotlib            | Analytics charts          |
+
 
 ## Project Structure
 
@@ -31,12 +37,26 @@ AI-powered campaign monitoring and optimization platform built using LangGraph, 
 adops_agent/
 
 ├── app/
+│   ├── __init__.py
+│   ├── agent.py
+│   ├── ai_engine.py
+│   ├── ingest.py
+│   ├── rag.py
+│   ├── scoring.py
+│   └── models.py
+│
 ├── data/
+│   ├── knowledge_base.txt
+│   └── sample_campaigns.csv
+│
 ├── reports/
+│
 ├── incoming_csv/
+│
 ├── streamlit_app.py
 ├── analyze.py
 ├── requirements.txt
+├── .env
 └── README.md
 ```
 
