@@ -29,238 +29,710 @@ INTERVIEW TALKING POINT:
   human interaction, FastAPI handles machine-to-machine communication."
 """
 
+```python
 import io
-import os
 from contextlib import asynccontextmanager
 from datetime import date
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# ── Import YOUR existing modules (unchanged) ──────────────────────────────────
 from app.ingest import load_campaign_data, FAISSIndex
 from app.agent import run_pipeline
-from app.models import Severity
 
 
-# ─── Startup: load expensive resources once ───────────────────────────────────
+# ─────────────────────────────────────────────
+# APP LIFECYCLE
+# ─────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Loads the FAISS index + embedding model ONCE when the server starts.
-    Reused for every incoming request — avoids 5-second delay per call.
-    """
-    print("🚀 Starting AdOps API — loading FAISS index...")
-    app.state.faiss_index = FAISSIndex("data/knowledge_base.txt")
-    print("✅ FAISS index ready")
+
+    print("🚀 Loading FAISS Knowledge Base...")
+
+    app.state.faiss_index = FAISSIndex(
+        "data/knowledge_base.txt"
+    )
+
+    print("✅ FAISS Ready")
+
     yield
-    print("👋 Shutting down")
+
+    print("👋 API Shutdown")
 
 
-# ─── FastAPI App ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# FASTAPI APP
+# ─────────────────────────────────────────────
 
 app = FastAPI(
+
     title="AdOps Intelligence Agent API",
-    description="Automated campaign analysis endpoint for n8n integration.",
-    version="1.0.0",
-    lifespan=lifespan,
+
+    description="AI-powered AdOps monitoring API",
+
+    version="2.0.0",
+
+    lifespan=lifespan
 )
 
 app.add_middleware(
+
     CORSMiddleware,
+
     allow_origins=["*"],
+
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# CONVERT ANALYSIS TO DICT
+# ─────────────────────────────────────────────
 
-def _analysis_to_dict(result) -> dict:
-    """
-    Converts your CampaignAnalysis dataclass → plain dict for JSON response.
-    Handles the Severity enum serialization (e.g. Severity.CRITICAL → "CRITICAL").
-    """
+def analysis_to_dict(result):
+
     return {
-        "campaign_id":   result.campaign_id,
-        "campaign_name": result.campaign_name,
-        "severity":      result.severity.value if hasattr(result.severity, "value") else str(result.severity),
-        "ctr":           round(result.ctr, 4),
-        "cpm":           round(result.cpm, 2),
-        "fill_rate":     round(result.fill_rate, 1),
-        "issues":        [i.issue_type for i in result.issues],
-        "explanation":   result.explanation or "",
-        "recommendations": result.recommendations or [],
+
+        "campaign_id":
+            result.campaign_id,
+
+        "campaign_name":
+            result.campaign_name,
+
+        "severity":
+            result.severity.value,
+
+        "ctr":
+            round(result.ctr, 4),
+
+        "cpm":
+            round(result.cpm, 2),
+
+        "fill_rate":
+            round(result.fill_rate, 1),
+
+        "issues":
+            [i.issue_type for i in result.issues],
+
+        "explanation":
+            result.explanation,
+
+        "recommendations":
+            result.recommendations
     }
 
 
-def _build_email_body(results: list, today: str) -> str:
-    """
-    Builds a plain-text email body from pipeline results.
-    n8n reads this string directly from the JSON and passes it to Gmail.
-    No string manipulation needed inside the n8n workflow.
-    """
-    total      = len(results)
-    critical   = [r for r in results if r["severity"] == "CRITICAL"]
-    high       = [r for r in results if r["severity"] == "HIGH"]
-    medium     = [r for r in results if r["severity"] == "MEDIUM"]
-    ok         = [r for r in results if r["severity"] == "OK"]
-    flagged    = [r for r in results if r["severity"] != "OK"]
+# ─────────────────────────────────────────────
+# HTML EMAIL GENERATOR
+# ─────────────────────────────────────────────
 
-    lines = [
-        f"AdOps Daily Report — {today}",
-        "=" * 50,
-        "",
-        "CAMPAIGN SUMMARY",
-        f"  Total Analyzed : {total}",
-        f"  🔴 Critical    : {len(critical)}",
-        f"  🟠 High        : {len(high)}",
-        f"  🟡 Medium      : {len(medium)}",
-        f"  ✅ Healthy     : {len(ok)}",
-        "",
+def build_html_email(results, today):
+
+    critical = [
+        r for r in results
+        if r["severity"] == "CRITICAL"
     ]
 
-    if flagged:
-        lines += [
-            "CAMPAIGNS REQUIRING ACTION",
-            "-" * 50,
-        ]
-        for r in flagged:
-            lines += [
-                "",
-                f"[{r['severity']}] {r['campaign_name']}  (ID: {r['campaign_id']})",
-                f"  CTR: {r['ctr']:.4f}%  |  CPM: ${r['cpm']:.2f}  |  Fill Rate: {r['fill_rate']:.1f}%",
-                f"  Issues: {', '.join(r['issues']) or 'None'}",
-            ]
-            if r["recommendations"]:
-                lines.append(f"  → {r['recommendations'][0]}")
-    else:
-        lines.append("✅ All campaigns are healthy — no action required.")
-
-    lines += [
-        "",
-        "─" * 50,
-        "AdOps Intelligence Agent · Automated Report",
-        f"Triggered by: Google Drive CSV upload",
+    high = [
+        r for r in results
+        if r["severity"] == "HIGH"
     ]
 
-    return "\n".join(lines)
+    medium = [
+        r for r in results
+        if r["severity"] == "MEDIUM"
+    ]
+
+    ok = [
+        r for r in results
+        if r["severity"] == "OK"
+    ]
+
+    # ─────────────────────────
+    # Campaign Cards
+    # ─────────────────────────
+
+    campaign_cards = ""
+
+    for r in results:
+
+        severity = r["severity"]
+
+        severity_color = {
+
+            "CRITICAL": "#ef4444",
+
+            "HIGH": "#f97316",
+
+            "MEDIUM": "#eab308",
+
+            "OK": "#22c55e"
+
+        }.get(severity, "#3b82f6")
+
+        issues = ", ".join(
+            r["issues"]
+        ) if r["issues"] else "No Issues"
+
+        recommendations_html = ""
+
+        for rec in r["recommendations"]:
+
+            recommendations_html += f"""
+            <li style="
+                margin-bottom:8px;
+                line-height:1.6;
+            ">
+                {rec}
+            </li>
+            """
+
+        campaign_cards += f"""
+
+        <div style="
+            background:#111827;
+            border-left:6px solid {severity_color};
+            border-radius:16px;
+            padding:24px;
+            margin-bottom:28px;
+        ">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:20px;
+            ">
+
+                <h2 style="
+                    color:white;
+                    margin:0;
+                    font-size:24px;
+                ">
+                    {r['campaign_name']}
+                </h2>
+
+                <span style="
+                    background:{severity_color};
+                    color:white;
+                    padding:10px 18px;
+                    border-radius:999px;
+                    font-size:12px;
+                    font-weight:bold;
+                    letter-spacing:1px;
+                ">
+                    {severity}
+                </span>
+
+            </div>
+
+            <table style="
+                width:100%;
+                border-collapse:collapse;
+                margin-bottom:24px;
+            ">
+
+                <tr>
+
+                    <td style="
+                        background:#1f2937;
+                        color:#9ca3af;
+                        padding:14px;
+                        font-weight:bold;
+                    ">
+                        CTR
+                    </td>
+
+                    <td style="
+                        background:#0f172a;
+                        color:white;
+                        padding:14px;
+                    ">
+                        {r['ctr']}%
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td style="
+                        background:#1f2937;
+                        color:#9ca3af;
+                        padding:14px;
+                        font-weight:bold;
+                    ">
+                        CPM
+                    </td>
+
+                    <td style="
+                        background:#0f172a;
+                        color:white;
+                        padding:14px;
+                    ">
+                        ${r['cpm']}
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td style="
+                        background:#1f2937;
+                        color:#9ca3af;
+                        padding:14px;
+                        font-weight:bold;
+                    ">
+                        Fill Rate
+                    </td>
+
+                    <td style="
+                        background:#0f172a;
+                        color:white;
+                        padding:14px;
+                    ">
+                        {r['fill_rate']}%
+                    </td>
+
+                </tr>
+
+            </table>
+
+            <div style="
+                background:#0f172a;
+                padding:18px;
+                border-radius:12px;
+                margin-bottom:20px;
+            ">
+
+                <h3 style="
+                    color:#60a5fa;
+                    margin-top:0;
+                ">
+                    Detected Issues
+                </h3>
+
+                <p style="
+                    color:#d1d5db;
+                    line-height:1.8;
+                ">
+                    {issues}
+                </p>
+
+            </div>
+
+            <div style="
+                background:#0f172a;
+                padding:18px;
+                border-radius:12px;
+                margin-bottom:20px;
+            ">
+
+                <h3 style="
+                    color:#c084fc;
+                    margin-top:0;
+                ">
+                    AI Explanation
+                </h3>
+
+                <p style="
+                    color:#d1d5db;
+                    line-height:1.8;
+                ">
+                    {r['explanation']}
+                </p>
+
+            </div>
+
+            <div style="
+                background:#0f172a;
+                padding:18px;
+                border-radius:12px;
+            ">
+
+                <h3 style="
+                    color:#34d399;
+                    margin-top:0;
+                ">
+                    Recommendations
+                </h3>
+
+                <ul style="
+                    color:#d1d5db;
+                    line-height:1.8;
+                    padding-left:20px;
+                ">
+                    {recommendations_html}
+                </ul>
+
+            </div>
+
+        </div>
+        """
+
+    # ─────────────────────────
+    # Final HTML
+    # ─────────────────────────
+
+    html = f"""
+
+    <html>
+
+    <body style="
+        background:#020617;
+        padding:40px;
+        font-family:Arial,sans-serif;
+    ">
+
+        <div style="
+            max-width:1000px;
+            margin:auto;
+            background:#0f172a;
+            border-radius:24px;
+            padding:40px;
+        ">
+
+            <h1 style="
+                color:white;
+                text-align:center;
+                margin-bottom:12px;
+            ">
+                📊 AdOps AI Monitoring Report
+            </h1>
+
+            <p style="
+                color:#94a3b8;
+                text-align:center;
+                margin-bottom:40px;
+            ">
+                Generated on {today}
+            </p>
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:16px;
+                margin-bottom:40px;
+            ">
+
+                <div style="
+                    flex:1;
+                    background:#7f1d1d;
+                    color:white;
+                    padding:20px;
+                    border-radius:14px;
+                    text-align:center;
+                ">
+                    🚨 Critical
+                    <h2>{len(critical)}</h2>
+                </div>
+
+                <div style="
+                    flex:1;
+                    background:#7c2d12;
+                    color:white;
+                    padding:20px;
+                    border-radius:14px;
+                    text-align:center;
+                ">
+                    ⚠ High
+                    <h2>{len(high)}</h2>
+                </div>
+
+                <div style="
+                    flex:1;
+                    background:#713f12;
+                    color:white;
+                    padding:20px;
+                    border-radius:14px;
+                    text-align:center;
+                ">
+                    🟡 Medium
+                    <h2>{len(medium)}</h2>
+                </div>
+
+                <div style="
+                    flex:1;
+                    background:#14532d;
+                    color:white;
+                    padding:20px;
+                    border-radius:14px;
+                    text-align:center;
+                ">
+                    ✅ Healthy
+                    <h2>{len(ok)}</h2>
+                </div>
+
+            </div>
+
+            {campaign_cards}
+
+            <div style="
+                text-align:center;
+                color:#64748b;
+                margin-top:50px;
+                font-size:14px;
+            ">
+
+                AdOps Intelligence Agent
+                <br>
+                Automated AI Campaign Monitoring System
+
+            </div>
+
+        </div>
+
+    </body>
+
+    </html>
+    """
+
+    return html
 
 
-# ─── Routes ───────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# HEALTH ROUTE
+# ─────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
-    """
-    Health check — used by Render to verify the server is running.
-    Also confirms the FAISS index loaded successfully.
-    """
+
     return {
+
         "status": "healthy",
-        "faiss_docs": len(app.state.faiss_index.documents),
-        "model": "llama-3.1-8b-instant (Groq)",
+
+        "knowledge_base_docs":
+            len(app.state.faiss_index.documents),
+
+        "model":
+            "llama-3.1-8b-instant"
     }
 
 
+# ─────────────────────────────────────────────
+# ANALYZE ROUTE
+# ─────────────────────────────────────────────
+
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
-    """
-    MAIN ENDPOINT — called by n8n when a new CSV is uploaded to Google Drive.
+async def analyze(
 
-    Accepts: multipart CSV file upload
-    Returns: full JSON report + pre-formatted email fields
+    file: UploadFile = File(...)
+):
 
-    n8n workflow:
-      Google Drive Trigger → Download File → POST /analyze → Gmail
+    if not file.filename.endswith(".csv"):
 
-    The response includes:
-      - alert_level    : overall severity (for IF node in n8n)
-      - email_subject  : ready-made subject line
-      - email_body     : ready-made plain text (paste into Gmail node)
-      - campaigns      : full list with details
-      - urgent         : only flagged campaigns (for n8n looping)
-    """
+        raise HTTPException(
 
-    # Validate file type
-    if not (file.filename or "").endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files accepted.")
+            status_code=400,
+
+            detail="Only CSV files supported"
+        )
 
     try:
-        # Read uploaded CSV bytes
+
         raw_bytes = await file.read()
 
-        # Use your existing load_campaign_data — wrap bytes as file-like object
-        csv_file = io.StringIO(raw_bytes.decode("utf-8"))
+        csv_file = io.StringIO(
+            raw_bytes.decode("utf-8")
+        )
+
         df = load_campaign_data(csv_file)
 
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"CSV parsing failed: {str(e)}")
 
-    # ── Run your LangGraph pipeline for each campaign row ─────────────────────
+        raise HTTPException(
+
+            status_code=422,
+
+            detail=f"CSV parsing failed: {str(e)}"
+        )
+
+    # ─────────────────────────
+    # Run AI Pipeline
+    # ─────────────────────────
+
     from app.models import Campaign
 
     results_raw = []
 
     for _, row in df.iterrows():
+
         campaign = Campaign(
-            campaign_id   = str(row["campaign_id"]),
-            campaign_name = str(row["campaign_name"]),
-            impressions   = float(row["impressions"]),
-            clicks        = float(row["clicks"]),
-            revenue       = float(row["revenue"]),
-            fill_rate     = float(row["fill_rate"]),
-            ctr           = float(row["ctr"]),
-            cpm           = float(row["cpm"]),
+
+            campaign_id=str(
+                row["campaign_id"]
+            ),
+
+            campaign_name=str(
+                row["campaign_name"]
+            ),
+
+            impressions=float(
+                row["impressions"]
+            ),
+
+            clicks=float(
+                row["clicks"]
+            ),
+
+            revenue=float(
+                row["revenue"]
+            ),
+
+            fill_rate=float(
+                row["fill_rate"]
+            ),
+
+            ctr=float(
+                row["ctr"]
+            ),
+
+            cpm=float(
+                row["cpm"]
+            )
         )
-        analysis = run_pipeline(campaign, app.state.faiss_index)
-        results_raw.append(analysis)
 
-    # ── Convert to serializable dicts ─────────────────────────────────────────
-    results = [_analysis_to_dict(r) for r in results_raw]
+        analysis = run_pipeline(
+            campaign,
+            app.state.faiss_index
+        )
 
-    # ── Build summary counts ───────────────────────────────────────────────────
-    today        = date.today().strftime("%B %d, %Y")
-    critical     = [r for r in results if r["severity"] == "CRITICAL"]
-    high         = [r for r in results if r["severity"] == "HIGH"]
-    medium       = [r for r in results if r["severity"] == "MEDIUM"]
-    ok           = [r for r in results if r["severity"] == "OK"]
-    urgent       = [r for r in results if r["severity"] in ("CRITICAL", "HIGH")]
+        results_raw.append(
+            analysis
+        )
 
-    # Overall alert level (used by n8n IF node to decide email type)
-    if critical:
-        alert_level = "CRITICAL"
-    elif high:
-        alert_level = "HIGH"
-    elif medium:
-        alert_level = "MEDIUM"
-    else:
-        alert_level = "OK"
+    # ─────────────────────────
+    # Convert Results
+    # ─────────────────────────
 
-    email_subject = (
-        f"[{alert_level}] AdOps Report — {today} | "
-        f"{len(urgent)} urgent campaign(s) flagged"
-        if urgent else
-        f"[ALL CLEAR] AdOps Report — {today} | All campaigns healthy"
+    results = [
+
+        analysis_to_dict(r)
+
+        for r in results_raw
+    ]
+
+    today = date.today().strftime(
+        "%B %d, %Y"
     )
 
+    critical = [
+        r for r in results
+        if r["severity"] == "CRITICAL"
+    ]
+
+    high = [
+        r for r in results
+        if r["severity"] == "HIGH"
+    ]
+
+    medium = [
+        r for r in results
+        if r["severity"] == "MEDIUM"
+    ]
+
+    ok = [
+        r for r in results
+        if r["severity"] == "OK"
+    ]
+
+    urgent = [
+        r for r in results
+        if r["severity"] in [
+            "CRITICAL",
+            "HIGH"
+        ]
+    ]
+
+    # ─────────────────────────
+    # Overall Alert Level
+    # ─────────────────────────
+
+    if critical:
+
+        alert_level = "CRITICAL"
+
+    elif high:
+
+        alert_level = "HIGH"
+
+    elif medium:
+
+        alert_level = "MEDIUM"
+
+    else:
+
+        alert_level = "OK"
+
+    # ─────────────────────────
+    # Subject
+    # ─────────────────────────
+
+    if urgent:
+
+        email_subject = (
+            f"[{alert_level}] "
+            f"AdOps AI Report — "
+            f"{today} | "
+            f"{len(urgent)} urgent campaign(s)"
+        )
+
+    else:
+
+        email_subject = (
+            f"[ALL CLEAR] "
+            f"AdOps AI Report — "
+            f"{today}"
+        )
+
+    # ─────────────────────────
+    # HTML Email
+    # ─────────────────────────
+
+    html_email = build_html_email(
+        results,
+        today
+    )
+
+    # ─────────────────────────
+    # Final Response
+    # ─────────────────────────
+
     return {
-        # ── For n8n IF node ──────────────────────────────────────────────────
-        "alert_level":     alert_level,
-        "has_urgent":      len(urgent) > 0,
 
-        # ── Ready-made email fields ──────────────────────────────────────────
-        "email_subject":   email_subject,
-        "email_body":      _build_email_body(results, today),
+        "alert_level":
+            alert_level,
 
-        # ── Summary counts ───────────────────────────────────────────────────
-        "total_campaigns": len(results),
-        "critical_count":  len(critical),
-        "high_count":      len(high),
-        "medium_count":    len(medium),
-        "ok_count":        len(ok),
+        "has_urgent":
+            len(urgent) > 0,
 
-        # ── Full data ────────────────────────────────────────────────────────
-        "campaigns":       results,
-        "urgent_campaigns": urgent,
+        "email_subject":
+            email_subject,
+
+        "email_body":
+            html_email,
+
+        "total_campaigns":
+            len(results),
+
+        "critical_count":
+            len(critical),
+
+        "high_count":
+            len(high),
+
+        "medium_count":
+            len(medium),
+
+        "ok_count":
+            len(ok),
+
+        "campaigns":
+            results,
+
+        "urgent_campaigns":
+            urgent
     }
+```
