@@ -1,0 +1,190 @@
+{
+  "name": "AdOps — Google Drive CSV → Analysis → Gmail",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute", "minute": 15 }]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "filters": {
+          "mimeType": "text/csv"
+        },
+        "options": {}
+      },
+      "id": "node-gdrive-trigger",
+      "name": "📁 Google Drive — New CSV",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [180, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GDRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      },
+      "notes": "SETUP: Replace YOUR_GOOGLE_DRIVE_FOLDER_ID with your actual folder ID. Get it from the URL when you open the folder in Google Drive: drive.google.com/drive/folders/THIS_PART_IS_THE_ID. Set poll interval to every 15 minutes."
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "node-gdrive-download",
+      "name": "⬇️ Download CSV File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [400, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GDRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      },
+      "notes": "Downloads the CSV file that was just uploaded. The file ID comes from the trigger node automatically via $json.id."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-APP-NAME.onrender.com/analyze",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-http-analyze",
+      "name": "🤖 Run AdOps Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [620, 300],
+      "notes": "SETUP: Replace YOUR-APP-NAME with your actual Render app name. The full URL looks like: https://adops-api.onrender.com/analyze. Timeout is 120 seconds — the pipeline takes ~30-60s for 8 campaigns."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-urgent",
+              "leftValue": "={{ $json.has_urgent }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-urgent",
+      "name": "🚨 Any Urgent Campaigns?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 300],
+      "notes": "Checks the 'has_urgent' field from the API response. If TRUE → send alert email. If FALSE → send all-clear email. This avoids sending noisy alert emails when everything is healthy."
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@gmail.com",
+        "subject": "={{ $('🤖 Run AdOps Analysis').item.json.email_subject }}",
+        "message": "={{ $('🤖 Run AdOps Analysis').item.json.email_body }}",
+        "options": {
+          "senderName": "AdOps Intelligence Agent"
+        }
+      },
+      "id": "node-gmail-alert",
+      "name": "🔴 Send Alert Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1060, 180],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      },
+      "notes": "SETUP: Replace your-email@gmail.com with the recipient address. Subject and body are pre-built by the API — no formatting needed here. The email_subject includes the alert level like: [CRITICAL] AdOps Report — Jan 15, 2025 | 2 urgent campaigns flagged"
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@gmail.com",
+        "subject": "={{ $('🤖 Run AdOps Analysis').item.json.email_subject }}",
+        "message": "={{ $('🤖 Run AdOps Analysis').item.json.email_body }}",
+        "options": {
+          "senderName": "AdOps Intelligence Agent"
+        }
+      },
+      "id": "node-gmail-clear",
+      "name": "✅ Send All Clear Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1060, 420],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      },
+      "notes": "Sends a clean 'all healthy' email when no campaigns are flagged. You can delete this node and leave the FALSE branch empty if you only want alert emails."
+    }
+  ],
+  "connections": {
+    "📁 Google Drive — New CSV": {
+      "main": [[{ "node": "⬇️ Download CSV File", "type": "main", "index": 0 }]]
+    },
+    "⬇️ Download CSV File": {
+      "main": [[{ "node": "🤖 Run AdOps Analysis", "type": "main", "index": 0 }]]
+    },
+    "🤖 Run AdOps Analysis": {
+      "main": [[{ "node": "🚨 Any Urgent Campaigns?", "type": "main", "index": 0 }]]
+    },
+    "🚨 Any Urgent Campaigns?": {
+      "main": [
+        [{ "node": "🔴 Send Alert Email",   "type": "main", "index": 0 }],
+        [{ "node": "✅ Send All Clear Email", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": ["adops", "google-drive", "automation", "gmail"],
+  "meta": {
+    "description": "Watches a Google Drive folder for new CSV uploads. When detected, downloads the file, sends it to the AdOps FastAPI for LangGraph analysis, and emails the results via Gmail."
+  }
+}

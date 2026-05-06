@@ -1,0 +1,28 @@
+# render.yaml — Render Deployment Config
+# ----------------------------------------
+# This file tells Render how to run your project.
+# Commit this to your GitHub repo root.
+# Render reads it automatically when you connect the repo.
+
+services:
+
+  # ── Service 1: FastAPI (Automation API) ───────────────────────────────────
+  - type: web
+    name: adops-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # You set this in Render dashboard manually
+    healthCheckPath: /health
+
+  # ── Service 2: Streamlit UI ───────────────────────────────────────────────
+  - type: web
+    name: adops-ui
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
