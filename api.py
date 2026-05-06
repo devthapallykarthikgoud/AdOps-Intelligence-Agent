@@ -1,34 +1,3 @@
-"""
-api.py — FastAPI Layer for Automation
----------------------------------------
-WHY THIS FILE EXISTS:
-  n8n (and any external tool) cannot trigger Streamlit directly.
-  Streamlit is a UI framework — it needs a human clicking buttons.
-
-  This file adds a REST API layer that n8n CAN call:
-    POST /analyze  → accepts CSV bytes → runs your LangGraph pipeline
-                   → returns structured JSON
-
-IMPORTANT:
-  Your existing files (streamlit_app.py, agent.py, ai_engine.py,
-  ingest.py, rag.py, models.py) are NOT changed at all.
-  This file just imports and reuses them.
-
-HOW IT WORKS WITH n8n:
-  1. User uploads CSV to Google Drive
-  2. n8n detects the new file (Google Drive trigger)
-  3. n8n downloads the CSV bytes
-  4. n8n POSTs the bytes to POST /analyze on this server
-  5. This endpoint runs your pipeline and returns JSON
-  6. n8n reads the JSON and sends Gmail
-
-INTERVIEW TALKING POINT:
-  "I kept the Streamlit UI and the automation API completely separate.
-  The API reuses all existing pipeline logic — no duplication.
-  This is the single-responsibility principle: Streamlit handles
-  human interaction, FastAPI handles machine-to-machine communication."
-"""
-
 ```python
 import io
 from contextlib import asynccontextmanager
