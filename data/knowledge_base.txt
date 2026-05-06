@@ -1,0 +1,119 @@
+[DOCUMENT]
+issue: Low CTR
+strategy: Refresh ad creatives with stronger visuals and clearer CTA messaging
+explanation: Creative fatigue and weak messaging often reduce user engagement and click-through rates.
+
+[DOCUMENT]
+issue: Low CTR
+strategy: Improve audience targeting using demographic and behavioral segmentation
+explanation: Poor audience relevance leads to low engagement and weak CTR performance.
+
+[DOCUMENT]
+issue: Low CTR
+strategy: Run A/B testing on ad headlines and creatives
+explanation: Testing multiple creative variations improves engagement optimization.
+
+[DOCUMENT]
+issue: Low CTR
+strategy: Optimize mobile ad experience and landing page speed
+explanation: Slow mobile experiences negatively impact click-through rates.
+
+[DOCUMENT]
+issue: Low CTR
+strategy: Exclude low-performing placements and invalid traffic sources
+explanation: Poor inventory quality can reduce campaign engagement metrics.
+
+[DOCUMENT]
+issue: Low CPM
+strategy: Optimize floor pricing strategy for premium inventory
+explanation: Better pricing improves advertiser competition and CPM performance.
+
+[DOCUMENT]
+issue: Low CPM
+strategy: Increase demand partner competition through header bidding
+explanation: More advertiser competition generally improves CPM rates.
+
+[DOCUMENT]
+issue: Low CPM
+strategy: Shift inventory toward high-performing GEOs and devices
+explanation: Premium markets and devices generate higher advertiser bids.
+
+[DOCUMENT]
+issue: Low CPM
+strategy: Improve audience quality and contextual relevance
+explanation: Advertisers pay more for highly targeted and premium audiences.
+
+[DOCUMENT]
+issue: Low CPM
+strategy: Optimize ad viewability and placement positioning
+explanation: Highly viewable placements attract stronger advertiser demand.
+
+[DOCUMENT]
+issue: Low Fill Rate
+strategy: Add additional DSPs and SSP demand partners
+explanation: More demand sources improve inventory fill rates.
+
+[DOCUMENT]
+issue: Low Fill Rate
+strategy: Reduce aggressive floor pricing to increase bid participation
+explanation: Excessively high floor prices reduce auction win rates.
+
+[DOCUMENT]
+issue: Low Fill Rate
+strategy: Improve inventory quality and brand safety compliance
+explanation: Poor inventory quality reduces advertiser demand participation.
+
+[DOCUMENT]
+issue: Low Fill Rate
+strategy: Expand multi-format inventory including video and native ads
+explanation: More inventory formats increase monetization opportunities.
+
+[DOCUMENT]
+issue: Low Fill Rate
+strategy: Optimize ad request latency and timeout settings
+explanation: Slow auction response times reduce fill rate performance.
+
+[DOCUMENT]
+issue: Low CTR and Low CPM
+strategy: Combine creative optimization with premium audience targeting
+explanation: Better engagement and audience quality improve both CTR and CPM simultaneously.
+
+[DOCUMENT]
+issue: Low CTR and Low CPM
+strategy: Rebuild campaign segmentation strategy using behavioral audiences
+explanation: Audience mismatch reduces engagement and advertiser value.
+
+[DOCUMENT]
+issue: Low CTR and Low Fill Rate
+strategy: Improve ad relevance and optimize inventory quality
+explanation: Relevant ads increase user engagement and advertiser demand.
+
+[DOCUMENT]
+issue: Low CTR and Low Fill Rate
+strategy: Remove low-quality placements and fraudulent traffic
+explanation: Invalid traffic damages both engagement and fill metrics.
+
+[DOCUMENT]
+issue: Low CPM and Low Fill Rate
+strategy: Improve inventory packaging and PMP deals
+explanation: Premium marketplace deals increase advertiser participation and CPM.
+
+[DOCUMENT]
+issue: Low CPM and Low Fill Rate
+strategy: Optimize yield management and dynamic floor pricing
+explanation: Better yield optimization improves both monetization and fill performance.
+
+[DOCUMENT]
+issue: Low CTR and Low CPM and Low Fill Rate
+strategy: Perform full-funnel campaign optimization audit
+explanation: Multi-metric underperformance indicates broader targeting, creative, and inventory issues.
+
+[DOCUMENT]
+issue: Low CTR and Low CPM and Low Fill Rate
+strategy: Re-evaluate campaign structure, audience quality, and monetization strategy
+explanation: Severe performance degradation requires holistic optimization across the advertising pipeline.
+
+[DOCUMENT]
+issue: Low CTR and Low CPM and Low Fill Rate
+strategy: Implement AI-driven bid optimization and audience retargeting
+explanation: Automated optimization can improve engagement, monetization, and fill performance together.

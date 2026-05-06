@@ -1,0 +1,6 @@
+campaign_id,campaign_name,impressions,clicks,revenue,fill_rate
+C001,Nike Summer Sale,500000,900,350,65
+C002,Amazon Prime Day,800000,1200,400,55
+C003,Spotify Premium,600000,2500,1200,88
+C004,Samsung Galaxy,700000,1000,300,60
+C005,Netflix Launch,900000,5000,2500,92
