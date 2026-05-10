@@ -155,7 +155,7 @@ AdOps-Intelligence-Agent/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/AdOps-Intelligence-Agent.git
+[git clone https://github.com/your-username/AdOps-Intelligence-Agent.git](https://github.com/devthapallykarthikgoud/AdOps-Intelligence-Agent.git)
 cd AdOps-Intelligence-Agent
 ```
 
